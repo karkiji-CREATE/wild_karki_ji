@@ -8,15 +8,22 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
 body,html{width:100%;height:100%;overflow:hidden;background:#222;}
 .screen{position:absolute;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;justify-content:center;align-items:center;}
-button{padding:12px 28px;margin:10px;font-size:1.2em;border:none;border-radius:14px;cursor:pointer;transition:0.3s;}
+button{
+  padding:12px 28px;
+  margin:10px;
+  font-size:1.2em;
+  border:none;
+  border-radius:14px;
+  cursor:pointer;
+  transition:0.3s;
+  position: relative;  /* Ensure above background */
+  z-index: 10;         /* Clickable */
+}
 button:hover{transform:scale(1.08);box-shadow:0 0 20px cyan;}
 #introContent{display:flex;width:90%;height:90%;justify-content:space-between;align-items:center;background:#6AB4F8;border-radius:20px;overflow:hidden;}
 #introText{flex:0.45;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:20px;color:white;text-shadow:2px 2px 5px rgba(0,0,0,0.7);}
 #introCanvas{flex:0.55;width:100%;height:100%;position:relative;}
 #noPage,#instruction,#exitPage{flex-direction:column;color:white;text-align:center;display:flex;justify-content:center;align-items:center;}
-#noPage{background:#333;}
-#exitPage{background:#222;}
-#instruction{background:#222;}
 #gameCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none;background:#77DD77;}
 #gameOverBox{position:absolute;top:20px;right:20px;width:auto;max-width:90%;background:rgba(0,0,0,0.7);padding:15px;border-radius:10px;color:white;font-size:16px;text-align:center;display:none;}
 #gameOverButtons{display:flex;justify-content:center;gap:15px;margin-top:10px;}
@@ -47,7 +54,7 @@ button:hover{transform:scale(1.08);box-shadow:0 0 20px cyan;}
 <div id="instruction" class="screen">
   <h2>Controls</h2>
   <p>⬅ ➡ Move</p>
-  <p>SHIFT → Nitro ⚡ (Tap on mobile to boost)</p>
+  <p>Nitro: SHIFT / Hold ⚡ (Tap & hold on mobile to boost)</p>
   <button id="startBtn">Start Ride</button>
 </div>
 
@@ -105,8 +112,7 @@ window.onload = function(){
       bikeX+=bikeDir;if(bikeX>introCanvas.width-180||bikeX<introCanvas.width*0.55) bikeDir*=-1;
       let bob=Math.sin(Date.now()*0.01)*5;
       // BIKE BASE
-      introCtx.fillStyle="#333";
-      introCtx.fillRect(bikeX,introCanvas.height-130+bob,80,20);
+      introCtx.fillStyle="#333";introCtx.fillRect(bikeX,introCanvas.height-130+bob,80,20);
       // WHEELS
       introCtx.fillStyle="black";
       introCtx.beginPath();introCtx.arc(bikeX+15,introCanvas.height-110,10,0,Math.PI*2);introCtx.fill();
@@ -115,8 +121,7 @@ window.onload = function(){
       introCtx.fillStyle="#FFD700";
       introCtx.beginPath();introCtx.arc(bikeX+40,introCanvas.height-140+bob,15,0,Math.PI*2);introCtx.fill();
       // BODY
-      introCtx.fillStyle="#1E90FF";
-      introCtx.fillRect(bikeX+30,introCanvas.height-130+bob,20,30);
+      introCtx.fillStyle="#1E90FF";introCtx.fillRect(bikeX+30,introCanvas.height-130+bob,20,30);
       // ARMS waving
       let wave = Math.sin(Date.now()*0.02)*10;
       introCtx.strokeStyle="#FFD700";
@@ -140,50 +145,52 @@ window.onload = function(){
   window.addEventListener("resize",resizeGame);resizeGame();
 
   let player,obstacles=[],score=0,highScore=Number(localStorage.getItem("karkiHighScore")||0),speed=6,running=false;
-  let keys={},nitroActive=false;
 
   function startGame(){
     instruction.style.display="none";
     canvas.style.display="block";
     player={x:canvas.width/2-30,y:canvas.height-200,w:60,h:80};
     obstacles=[];score=0;speed=6;running=true;
+    keys={};nitroActive=false;
     requestAnimationFrame(gameLoop);
   }
 
-  // CONTROLS
-  window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key=="Shift") nitroActive=true;});
-  window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;if(e.key=="Shift") nitroActive=false;});
-  canvas.addEventListener("touchstart",()=>{nitroActive=true;});
-  canvas.addEventListener("touchend",()=>{nitroActive=false;});
+  // CONTROLS WITH NITRO & SWIPE
+  keys={};nitroActive=false;
+  let touchStartX=null;
+  window.addEventListener("keydown", e => {keys[e.key.toLowerCase()]=true;if(e.key==="Shift") nitroActive=true;});
+  window.addEventListener("keyup", e => {keys[e.key.toLowerCase()]=false;if(e.key==="Shift") nitroActive=false;});
+  canvas.addEventListener("touchstart", e => {nitroActive=true; touchStartX = e.touches[0].clientX;});
+  canvas.addEventListener("touchend", e => {nitroActive=false; touchStartX=null; keys["arrowleft"]=false; keys["arrowright"]=false;});
+  canvas.addEventListener("touchmove", e => {
+    if(touchStartX===null) return;
+    let deltaX = e.touches[0].clientX - touchStartX;
+    if(deltaX>30){keys["arrowright"]=true;keys["arrowleft"]=false;}
+    else if(deltaX<-30){keys["arrowleft"]=true;keys["arrowright"]=false;}
+  });
 
   function gameLoop(){
     if(!running)return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // player move
-    if(keys["arrowleft"]||keys["a"]){player.x-=8;}
-    if(keys["arrowright"]||keys["d"]){player.x+=8;}
+    if(keys["arrowleft"]) player.x-=8;
+    if(keys["arrowright"]) player.x+=8;
 
-    // obstacles speed
     let playerSpeed = speed;
-    if(nitroActive){playerSpeed*=2;}
+    if(nitroActive) playerSpeed *= 2;
 
     // spawn obstacles
-    if(Math.random()<0.02){obstacles.push({x:Math.random()*(canvas.width-60),y:-80,w:60,h:60});}
-
+    if(Math.random()<0.02) obstacles.push({x:Math.random()*(canvas.width-60),y:-80,w:60,h:60});
     // move obstacles
     obstacles.forEach(o=>{o.y+=playerSpeed; ctx.fillStyle="red"; ctx.fillRect(o.x,o.y,o.w,o.h);});
-
-    // remove off-screen
     obstacles=obstacles.filter(o=>o.y<canvas.height);
 
-    // collision
+    // collisions
     for(let o of obstacles){if(player.x<o.x+o.w && player.x+player.w>o.x && player.y<o.y+o.h && player.y+player.h>o.y){gameOver();return;}}
 
-    // draw Mr. Karki bike
+    // draw MR. KARKI bike
     drawMrKarki(player.x,player.y,player.w,player.h);
 
-    // score
     score++;
     ctx.fillStyle="white";ctx.font="20px Arial";
     ctx.fillText("Score: "+score,20,30);
@@ -193,19 +200,13 @@ window.onload = function(){
     requestAnimationFrame(gameLoop);
   }
 
-  // MR. KARKI CARTOON BIKE
   function drawMrKarki(x,y,w,h){
-    // BIKE BASE
-    ctx.fillStyle="#333"; ctx.fillRect(x, y+h-20, w, 20);
-    // WHEELS
+    ctx.fillStyle="#333";ctx.fillRect(x, y+h-20, w, 20);
     ctx.fillStyle="black";
     ctx.beginPath();ctx.arc(x+15,y+h,10,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(x+w-15,y+h,10,0,Math.PI*2);ctx.fill();
-    // HEAD
-    ctx.fillStyle="#FFD700"; ctx.beginPath();ctx.arc(x+w/2,y,15,0,Math.PI*2);ctx.fill();
-    // BODY
-    ctx.fillStyle="#1E90FF"; ctx.fillRect(x+w/2-10,y,20,35);
-    // ARMS
+    ctx.fillStyle="#FFD700";ctx.beginPath();ctx.arc(x+w/2,y,15,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#1E90FF";ctx.fillRect(x+w/2-10,y,20,35);
     ctx.strokeStyle="#FFD700";ctx.lineWidth=3;
     ctx.beginPath();ctx.moveTo(x+w/2,y+10);ctx.lineTo(x-5,y+20);ctx.stroke();
     ctx.beginPath();ctx.moveTo(x+w/2,y+10);ctx.lineTo(x+w+5,y+20);ctx.stroke();
