@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MR. Karki Adventure</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+body,html{width:100%;height:100%;overflow:hidden;background:#222;}
+.screen{position:absolute;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;justify-content:center;align-items:center;}
+button{padding:12px 28px;margin:10px;font-size:1.2em;border:none;border-radius:14px;cursor:pointer;transition:0.3s;}
+button:hover{transform:scale(1.08);box-shadow:0 0 20px cyan;}
+#introContent{display:flex;width:90%;height:90%;justify-content:space-between;align-items:center;background:#6AB4F8;border-radius:20px;overflow:hidden;}
+#introText{flex:0.45;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:20px;color:white;text-shadow:2px 2px 5px rgba(0,0,0,0.7);}
+#introCanvas{flex:0.55;width:100%;height:100%;position:relative;}
+#noPage,#instruction,#exitPage{flex-direction:column;color:white;text-align:center;display:flex;justify-content:center;align-items:center;}
+#noPage{background:#333;}
+#exitPage{background:#222;}
+#instruction{background:#222;}
+#gameCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none;background:#77DD77;}
+#gameOverBox{position:absolute;top:20px;right:20px;width:auto;max-width:90%;background:rgba(0,0,0,0.7);padding:15px;border-radius:10px;color:white;font-size:16px;text-align:center;display:none;}
+#gameOverButtons{display:flex;justify-content:center;gap:15px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<!-- INTRO PAGE -->
+<div id="intro" class="screen">
+  <div id="introContent">
+    <div id="introText">
+      <h1>Hey, it's MR. Karki here!</h1>
+      <p>MR. Karki is late for college.<br>Can you help him get there?</p>
+      <button id="yesBtn">YES</button>
+      <button id="noBtn">NO</button>
+    </div>
+    <canvas id="introCanvas"></canvas>
+  </div>
+</div>
+
+<!-- NO PAGE -->
+<div id="noPage" class="screen">
+  <h1>No worries 😎</h1>
+  <p>Refresh to start again 🔄</p>
+</div>
+
+<!-- INSTRUCTION PAGE -->
+<div id="instruction" class="screen">
+  <h2>Controls</h2>
+  <p>⬅ ➡ Move</p>
+  <p>SHIFT → Nitro ⚡ (Tap on mobile to boost)</p>
+  <button id="startBtn">Start Ride</button>
+</div>
+
+<!-- GAME CANVAS -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- GAME OVER -->
+<div id="gameOverBox">
+  <h3>MR. Karki expired 💀</h3>
+  <p>Could do even better!<br>Score: <span id="finalScore">0</span><br>High: <span id="highScore">0</span></p>
+  <div id="gameOverButtons">
+    <button id="tryAgainBtn">Try Again</button>
+    <button id="exitBtn">Exit</button>
+  </div>
+</div>
+
+<!-- EXIT PAGE -->
+<div id="exitPage" class="screen">
+  <h1>I will be waiting 😢</h1>
+  <p>Refresh to start again 🔄</p>
+</div>
+
+<script>
+window.onload = function(){
+
+  // PAGE ELEMENTS
+  const intro=document.getElementById("intro");
+  const noPage=document.getElementById("noPage");
+  const instruction=document.getElementById("instruction");
+  const gameCanvas=document.getElementById("gameCanvas");
+  const gameOverBox=document.getElementById("gameOverBox");
+  const exitPage=document.getElementById("exitPage");
+  const finalScoreSpan=document.getElementById("finalScore");
+  const highScoreSpan=document.getElementById("highScore");
+
+  intro.style.display="flex";
+  noPage.style.display="none";
+  instruction.style.display="none";
+  gameCanvas.style.display="none";
+  gameOverBox.style.display="none";
+  exitPage.style.display="none";
+
+  // INTRO ANIMATION
+  const introCanvas=document.getElementById('introCanvas');
+  const introCtx=introCanvas.getContext('2d');
+  function resizeIntro(){introCanvas.width=introCanvas.clientWidth;introCanvas.height=introCanvas.clientHeight;}
+  window.addEventListener('resize',resizeIntro);resizeIntro();
+  let bikeX=50,bikeDir=2,stars=[];
+  for(let i=0;i<80;i++){stars.push({x:Math.random()*introCanvas.width,y:Math.random()*introCanvas.height*0.6,r:Math.random()*2+1});}
+  function drawIntro(){
+      introCtx.clearRect(0,0,introCanvas.width,introCanvas.height);
+      introCtx.fillStyle="#6AB4F8";introCtx.fillRect(0,0,introCanvas.width,introCanvas.height);
+      introCtx.fillStyle="white";
+      stars.forEach(s=>{s.y+=0.5;if(s.y>introCanvas.height)s.y=0;s.x+=Math.sin(Date.now()*0.001);introCtx.beginPath();introCtx.arc(s.x,s.y,s.r,0,Math.PI*2);introCtx.fill();});
+      bikeX+=bikeDir;if(bikeX>introCanvas.width-180||bikeX<introCanvas.width*0.55) bikeDir*=-1;
+      let bob=Math.sin(Date.now()*0.01)*5;
+      // BIKE BASE
+      introCtx.fillStyle="#333";
+      introCtx.fillRect(bikeX,introCanvas.height-130+bob,80,20);
+      // WHEELS
+      introCtx.fillStyle="black";
+      introCtx.beginPath();introCtx.arc(bikeX+15,introCanvas.height-110,10,0,Math.PI*2);introCtx.fill();
+      introCtx.beginPath();introCtx.arc(bikeX+65,introCanvas.height-110,10,0,Math.PI*2);introCtx.fill();
+      // MR. KARKI HEAD
+      introCtx.fillStyle="#FFD700";
+      introCtx.beginPath();introCtx.arc(bikeX+40,introCanvas.height-140+bob,15,0,Math.PI*2);introCtx.fill();
+      // BODY
+      introCtx.fillStyle="#1E90FF";
+      introCtx.fillRect(bikeX+30,introCanvas.height-130+bob,20,30);
+      // ARMS waving
+      let wave = Math.sin(Date.now()*0.02)*10;
+      introCtx.strokeStyle="#FFD700";
+      introCtx.lineWidth=3;
+      introCtx.beginPath();introCtx.moveTo(bikeX+40,introCanvas.height-130+bob);introCtx.lineTo(bikeX+25,introCanvas.height-120+bob+wave);introCtx.stroke();
+      introCtx.beginPath();introCtx.moveTo(bikeX+40,introCanvas.height-130+bob);introCtx.lineTo(bikeX+55,introCanvas.height-120+bob-wave);introCtx.stroke();
+      requestAnimationFrame(drawIntro);
+  }
+  drawIntro();
+
+  // BUTTONS
+  document.getElementById("yesBtn").onclick=()=>{intro.style.display="none";instruction.style.display="flex";}
+  document.getElementById("noBtn").onclick=()=>{intro.style.display="none";noPage.style.display="flex";}
+  document.getElementById("startBtn").onclick=startGame;
+  document.getElementById("tryAgainBtn").onclick=()=>{gameOverBox.style.display="none";startGame();}
+  document.getElementById("exitBtn").onclick=()=>{gameOverBox.style.display="none";exitPage.style.display="flex";}
+
+  // GAME SETUP
+  const canvas=gameCanvas,ctx=canvas.getContext("2d");
+  function resizeGame(){canvas.width=innerWidth;canvas.height=innerHeight;}
+  window.addEventListener("resize",resizeGame);resizeGame();
+
+  let player,obstacles=[],score=0,highScore=Number(localStorage.getItem("karkiHighScore")||0),speed=6,running=false;
+  let keys={},nitroActive=false;
+
+  function startGame(){
+    instruction.style.display="none";
+    canvas.style.display="block";
+    player={x:canvas.width/2-30,y:canvas.height-200,w:60,h:80};
+    obstacles=[];score=0;speed=6;running=true;
+    requestAnimationFrame(gameLoop);
+  }
+
+  // CONTROLS
+  window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key=="Shift") nitroActive=true;});
+  window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;if(e.key=="Shift") nitroActive=false;});
+  canvas.addEventListener("touchstart",()=>{nitroActive=true;});
+  canvas.addEventListener("touchend",()=>{nitroActive=false;});
+
+  function gameLoop(){
+    if(!running)return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // player move
+    if(keys["arrowleft"]||keys["a"]){player.x-=8;}
+    if(keys["arrowright"]||keys["d"]){player.x+=8;}
+
+    // obstacles speed
+    let playerSpeed = speed;
+    if(nitroActive){playerSpeed*=2;}
+
+    // spawn obstacles
+    if(Math.random()<0.02){obstacles.push({x:Math.random()*(canvas.width-60),y:-80,w:60,h:60});}
+
+    // move obstacles
+    obstacles.forEach(o=>{o.y+=playerSpeed; ctx.fillStyle="red"; ctx.fillRect(o.x,o.y,o.w,o.h);});
+
+    // remove off-screen
+    obstacles=obstacles.filter(o=>o.y<canvas.height);
+
+    // collision
+    for(let o of obstacles){if(player.x<o.x+o.w && player.x+player.w>o.x && player.y<o.y+o.h && player.y+player.h>o.y){gameOver();return;}}
+
+    // draw Mr. Karki bike
+    drawMrKarki(player.x,player.y,player.w,player.h);
+
+    // score
+    score++;
+    ctx.fillStyle="white";ctx.font="20px Arial";
+    ctx.fillText("Score: "+score,20,30);
+    ctx.fillText("High: "+highScore,20,60);
+
+    speed+=0.001;
+    requestAnimationFrame(gameLoop);
+  }
+
+  // MR. KARKI CARTOON BIKE
+  function drawMrKarki(x,y,w,h){
+    // BIKE BASE
+    ctx.fillStyle="#333"; ctx.fillRect(x, y+h-20, w, 20);
+    // WHEELS
+    ctx.fillStyle="black";
+    ctx.beginPath();ctx.arc(x+15,y+h,10,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(x+w-15,y+h,10,0,Math.PI*2);ctx.fill();
+    // HEAD
+    ctx.fillStyle="#FFD700"; ctx.beginPath();ctx.arc(x+w/2,y,15,0,Math.PI*2);ctx.fill();
+    // BODY
+    ctx.fillStyle="#1E90FF"; ctx.fillRect(x+w/2-10,y,20,35);
+    // ARMS
+    ctx.strokeStyle="#FFD700";ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(x+w/2,y+10);ctx.lineTo(x-5,y+20);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+w/2,y+10);ctx.lineTo(x+w+5,y+20);ctx.stroke();
+  }
+
+  function gameOver(){
+    running=false;
+    canvas.style.display="none";
+    finalScoreSpan.innerText=score;
+    if(score>highScore){highScore=score;localStorage.setItem("karkiHighScore",highScore);}
+    highScoreSpan.innerText=highScore;
+    gameOverBox.style.display="block";
+  }
+
+};
+</script>
+</body>
+</html>
